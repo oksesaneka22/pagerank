@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageRank Music Recommender</title>
+
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800;1,300..800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container_main">
+        <header class="header">
+            <h1 class="header_title">Music Recommendation System</h1>
+            <p class="header_subtitle">Powered by PageRank Algorithm</p>
+        </header>
+
+        <div class="container_content">
+
+            <div class="container_left">
+                <section class="graph_section">
+                    <h2 class="section_title">Interaction Graph</h2>
+                    <p class="section_description">Visualization of user-song interactions</p>
+
+                    <div class="graph_container">
+                        <div class="graph_placeholder">
+                            <div class="graph_nodes">
+                                <div class="graph_node node_user" data-node="user1">U1</div>
+                                <div class="graph_node node_user" data-node="user2">U2</div>
+                                <div class="graph_node node_user" data-node="user3">U3</div>
+                                <div class="graph_node node_user" data-node="user4">U4</div>
+
+                                <div class="graph_node node_song" data-node="songA">A</div>
+                                <div class="graph_node node_song" data-node="songB">B</div>
+                                <div class="graph_node node_song" data-node="songC">C</div>
+                                <div class="graph_node node_song" data-node="songD">D</div>
+                                <div class="graph_node node_song" data-node="songE">E</div>
+                                <div class="graph_node node_song" data-node="songF">F</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="graph_legend">
+                        <div class="legend_item">
+                            <span class="legend_color user_color"></span>
+                            <span class="legend_text">Users</span>
+                        </div>
+                        <div class="legend_item">
+                            <span class="legend_color song_color"></span>
+                            <span class="legend_text">Songs</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+
+            <div class="container_right">
+
+                <section class="control_section">
+                    <h2 class="section_title">Select User</h2>
+
+                    <div class="select_wrapper">
+                        <select id="userSelect" class="user_select">
+                            <option value="user1">User 1 (John)</option>
+                            <option value="user2">User 2 (Emma)</option>
+                            <option value="user3">User 3 (Alex)</option>
+                            <option value="user4" selected>User 4 (Sarah)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn_recommend" id="recommendBtn">
+                        <span class="btn_text">Get Recommendations</span>
+                    </button>
+                </section>
+
+                <section class="results_section">
+                    <h2 class="section_title">🎵 Top Recommendations</h2>
+
+                    <div class="recommendations_list" id="recommendationsList">
+                        <div class="empty_state">
+                            <p class="empty_text">Select a user and click "Get Recommendations"</p>
+                        </div>
+
+                        <div class="recommendation_item template" style="display: none;">
+                            <div class="recommendation_rank">
+                                <span class="rank_number">1</span>
+                            </div>
+                            <div class="recommendation_content">
+                                <h3 class="song_title">Song Name</h3>
+                                <p class="song_score">PageRank Score: <span class="score_value">0.000</span></p>
+                                <div class="score_bar">
+                                    <div class="score_fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="algorithm_info">
+                        <h3 class="info_title">How it works</h3>
+                        <p class="info_text">
+                            PageRank analyzes user-song interactions to find the most relevant recommendations.
+                            Songs with higher scores are more likely to match user preferences.
+                        </p>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <section class="stats_section">
+            <div class="stat_item">
+                <span class="stat_number">4</span>
+                <span class="stat_label">Active Users</span>
+            </div>
+            <div class="stat_item">
+                <span class="stat_number">6</span>
+                <span class="stat_label">Available Songs</span>
+            </div>
+            <div class="stat_item">
+                <span class="stat_number">10</span>
+                <span class="stat_label">Total Interactions</span>
+            </div>
+            <div class="stat_item">
+                <span class="stat_number">0.85</span>
+                <span class="stat_label">Damping Factor</span>
+            </div>
+        </section>
+    </div>
+
+    <footer class="container_footer">
+        <div class="footer_content">
+            <p class="footer_text">Made by Team 5 "ШТРАФНІ БАЛИ!!!"</p>
+        </div>
+    </footer>
+
+
+    <py-config>
+        packages = ["numpy"]
+    </py-config>
+
+    <py-script>
+        import numpy as np
+        from pyodide.ffi import create_proxy
+        from js import document, DOMException
+
+        def normalize_matrix(matrix):
+            col_sums = matrix.sum(axis=0)
+            col_sums[col_sums == 0] = 1
+            return matrix / col_sums
+
+        def pagerank(matrix, personalization_vector=None, d=0.85, max_iter=100, tol=1e-6):
+            n = matrix.shape[0]
+            matrix_norm = normalize_matrix(matrix)
+            rank = np.ones(n) / n
+
+            if personalization_vector is None:
+                teleport = np.ones(n) / n
+            else:
+                teleport = personalization_vector / np.sum(personalization_vector)
+
+            for _ in range(max_iter):
+                new_rank = d * matrix_norm.dot(rank) + (1 - d) * teleport
+
+                if np.linalg.norm(new_rank - rank) < tol:
+                    break
+                rank = new_rank
+
+            return rank
+
+        def build_interaction_graph(items, users, interactions):
+            all_nodes = users + items
+            n = len(all_nodes)
+            index = {node: i for i, node in enumerate(all_nodes)}
+            matrix = np.zeros((n, n))
+
+            for user, item in interactions:
+                ui = index[user]
+                ii = index[item]
+                matrix[ii][ui] = 1
+                matrix[ui][ii] = 1
+
+            return matrix, index, all_nodes
+
+        def recommend(user_id, rank, index, all_nodes, top_k=5):
+            scores = []
+            for node in all_nodes:
+                if str(node).startswith("song"):
+                    idx = index[node]
+                    scores.append((node, rank[idx]))
+
+            scores.sort(key=lambda x: x[1], reverse=True)
+            return scores[:top_k]
+
+
+        def draw_edges():
+            graph_placeholder = document.querySelector(".graph_placeholder")
+
+
+            node_positions = {
+                "user1": (30, 5), "user2": (30, 20), "user3": (30, 35), "user4": (30, 50),
+                "songA": (75, 5), "songB": (75, 20), "songC": (75, 35), "songD": (75, 50),
+                "songE": (75, 65), "songF": (75, 80),
+            }
+
+
+            old_svg = graph_placeholder.querySelector('svg')
+            if old_svg:
+                old_svg.remove()
+
+            try:
+                svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+                svg.setAttribute('width', '100%')
+                svg.setAttribute('height', '100%')
+                svg.setAttribute('style', 'position: absolute; top: 0; left: 0; pointer-events: none;')
+
+                for user_node, song_node in INTERACTIONS:
+                    if user_node in node_positions and song_node in node_positions:
+                        x1_perc, y1_perc = node_positions[user_node]
+                        x2_perc, y2_perc = node_positions[song_node]
+
+                        line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+                        line.setAttribute('x1', f'{x1_perc}%')
+                        line.setAttribute('y1', f'{y1_perc}%')
+                        line.setAttribute('x2', f'{x2_perc}%')
+                        line.setAttribute('y2', f'{y2_perc}%')
+                        line.setAttribute('stroke', '#a0aec0')
+                        line.setAttribute('stroke-width', '2')
+                        line.setAttribute('stroke-dasharray', '4 2')
+
+                        svg.appendChild(line)
+
+                graph_placeholder.appendChild(svg)
+
+
+                for node_id, (x_perc, y_perc) in node_positions.items():
+                    node_element = document.querySelector(f'.graph_node[data-node="{node_id}"]')
+                    if node_element:
+                        node_element.style.left = f'{x_perc}%'
+                        node_element.style.top = f'{y_perc}%'
+                        node_element.style.transform = 'translate(-50%, -50%)'
+
+            except DOMException as e:
+                print(f"Помилка DOM при малюванні графа: {e}")
+            except Exception as e:
+                print(f"Невідома помилка при малюванні графа: {e}")
+
+
+        USERS = ["user1", "user2", "user3", "user4"]
+        ITEMS = ["songA", "songB", "songC", "songD", "songE", "songF"]
+
+        INTERACTIONS = [
+            ("user1", "songA"), ("user1", "songB"),
+            ("user2", "songA"), ("user2", "songC"),
+            ("user3", "songB"), ("user3", "songD"),
+            ("user4", "songE"), ("user4", "songF"),
+            ("user1", "songC"), ("user2", "songB")
+        ]
+
+        matrix, index, all_nodes = build_interaction_graph(ITEMS, USERS, INTERACTIONS)
+
+        draw_edges()
+
+
+        def generate_recommendations(event):
+            user_select = document.getElementById("userSelect")
+            user_id = user_select.value
+
+            n = len(all_nodes)
+            p_vector = np.zeros(n)
+            user_index = index.get(user_id)
+
+            if user_index is not None:
+                p_vector[user_index] = 1.0
+
+            ranks = pagerank(matrix, personalization_vector=p_vector)
+            recs = recommend(user_id, ranks, index, all_nodes, top_k=5)
+
+            list_container = document.getElementById("recommendationsList")
+            template = document.querySelector(".recommendation_item.template")
+            empty_state = document.querySelector(".empty_state")
+
+            for item in list_container.querySelectorAll(".recommendation_item:not(.template)"):
+                item.remove()
+            if empty_state:
+                empty_state.style.display = "none"
+
+            max_score = max([score for _, score in recs]) if recs else 1.0
+
+            for idx, (song, score) in enumerate(recs):
+
+                clone = template.cloneNode(True)
+                clone.classList.remove("template")
+                clone.style.display = "flex"
+
+                clone.querySelector(".rank_number").innerHTML = str(idx + 1)
+                clone.querySelector(".song_title").innerHTML = song
+                clone.querySelector(".score_value").innerHTML = f"{score:.4f}"
+
+                bar_width = min((float(score) / max_score) * 100, 100)
+                clone.querySelector(".score_fill").style.width = f"{bar_width}%"
+
+                list_container.appendChild(clone)
+
+        btn = document.getElementById("recommendBtn")
+        py_func = create_proxy(generate_recommendations)
+        btn.addEventListener('click', py_func)
+
+    </py-script>
+
+</body>
+</html>
